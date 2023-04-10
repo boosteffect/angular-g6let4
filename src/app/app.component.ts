@@ -1,16 +1,17 @@
 import { Observable } from 'rxjs';
-import { Component, ViewChild, OnInit } from '@angular/core';
+import { Component, ViewChild, ViewEncapsulation, OnInit } from '@angular/core';
 import { Validators, FormBuilder, FormGroup } from '@angular/forms';
+import { RowClassArgs } from '@progress/kendo-angular-grid';
 
 import {
-    AddEvent,
-    GridDataResult,
-    CellClickEvent,
-    CellCloseEvent,
-    SaveEvent,
-    CancelEvent,
-    GridComponent,
-    RemoveEvent
+  AddEvent,
+  GridDataResult,
+  CellClickEvent,
+  CellCloseEvent,
+  SaveEvent,
+  CancelEvent,
+  GridComponent,
+  RemoveEvent,
 } from '@progress/kendo-angular-grid';
 import { State, process } from '@progress/kendo-data-query';
 
@@ -21,11 +22,30 @@ import { EditService } from './edit.service';
 import { map } from 'rxjs/operators';
 
 @Component({
-    selector: 'my-app',
-    template: `
+  selector: 'my-app',
+  encapsulation: ViewEncapsulation.None,
+  styles: [
+    `
+          #my-grid tr.gold {
+            background-color: #ffba80;
+          }
+
+          
+          #my-grid tr.red {
+            background-color: #ff0000;
+        }
+    
+          #my-grid tr.green {
+            background-color: #b2f699;
+          }
+        `,
+  ],
+  template: `
         <kendo-grid
             #grid
+            id="my-grid"
             [data]="view | async"
+            [rowClass]="rowCallback"
             [pageSize]="gridState.take"
             [skip]="gridState.skip"
             [sort]="gridState.sort"
@@ -51,111 +71,144 @@ import { map } from 'rxjs/operators';
             <kendo-grid-column field="UnitsInStock" editor="numeric" title="Units In Stock"></kendo-grid-column>
             <kendo-grid-command-column title="command" [width]="220">
                 <ng-template kendoGridCellTemplate let-isNew="isNew" let-dataItem>
-                    <button kendoGridRemoveCommand>Remove</button>
-                    <button (click)="cloneItem(dataItem)">Clone</button>
+                    <button kendoGridRemoveCommand>{{ removeButtonText(dataItem) }}</button>
+                    <button class="k-button k-button-md k-button-solid-base" *ngIf=!isNew (click)="cloneItem(dataItem)">Clone</button>
                     <button kendoGridSaveCommand>Add</button>
                     <button kendoGridCancelCommand>Cancel</button>
                 </ng-template>
             </kendo-grid-command-column>
         </kendo-grid>
-    `
+    `,
 })
 export class AppComponent implements OnInit {
-    public view: Observable<GridDataResult>;
-    public gridState: State = {
-        sort: [],
-        skip: 0,
-        take: 5
-    };
+  public view: Observable<GridDataResult>;
+  public gridState: State = {
+    sort: [],
+    skip: 0,
+    take: 5,
+  };
 
-    public changes = {};
+  public changes = {};
 
-    @ViewChild('grid') grid;
+  @ViewChild('grid') grid;
 
+  constructor(
+    private formBuilder: FormBuilder,
+    public editService: EditService
+  ) {}
 
-    constructor(private formBuilder: FormBuilder, public editService: EditService) {}
+  public ngOnInit(): void {
+    this.view = this.editService.pipe(
+      map((data) => process(data, this.gridState))
+    );
 
-    public ngOnInit(): void {
-        this.view = this.editService.pipe(map((data) => process(data, this.gridState)));
+    this.editService.read();
+  }
 
-        this.editService.read();
+  public removeButtonText(item) {
+      return  item.Deleted ? 'Restore' : 'Delete';
+  }
+
+  public onStateChange(state: State): void {
+    this.gridState = state;
+
+    this.editService.read();
+  }
+
+  public cellClickHandler(args: CellClickEvent): void {
+    if (!args.isEdited) {
+        console.log('Click Handler Called - isEdited');
+      args.sender.editCell(
+        args.rowIndex,
+        args.columnIndex,
+        this.createFormGroup(args.dataItem)
+      );
     }
+  }
 
-    public onStateChange(state: State): void {
-        this.gridState = state;
+  public cellCloseHandler(args: CellCloseEvent): void {
+    const { formGroup, dataItem } = args;
 
-        this.editService.read();
+    if (!formGroup.valid) {
+      // prevent closing the edited cell if there are invalid values.
+      args.preventDefault();
+    } else if (formGroup.dirty) {
+      if (args.originalEvent && args.originalEvent.keyCode === Keys.Escape) {
+        return;
+      }
+
+      this.editService.assignValues(dataItem, formGroup.value);
+      this.editService.update(dataItem);
     }
+  }
 
-    public cellClickHandler(args: CellClickEvent): void {
-        if (!args.isEdited) {
-            args.sender.editCell(args.rowIndex, args.columnIndex, this.createFormGroup(args.dataItem));
-        }
+  public addHandler(args: AddEvent): void {
+    let p = new Product();
+    args.sender.addRow(this.createFormGroup(p));
+  }
+
+  public cancelHandler(args: CancelEvent): void {
+    args.sender.closeRow(args.rowIndex);
+  }
+
+  public saveHandler(args: SaveEvent): void {
+    if (args.formGroup.valid) {
+      this.editService.create(args.formGroup.value);
+      args.sender.closeRow(args.rowIndex);
     }
+  }
 
-    public cellCloseHandler(args: CellCloseEvent): void {
-        const { formGroup, dataItem } = args;
+  public removeHandler(args: RemoveEvent): void {
+    this.editService.remove(args.dataItem);
+    args.sender.cancelCell();
+  }
 
-        if (!formGroup.valid) {
-            // prevent closing the edited cell if there are invalid values.
-            args.preventDefault();
-        } else if (formGroup.dirty) {
-            if (args.originalEvent && args.originalEvent.keyCode === Keys.Escape) {
-                return;
-            }
+  public cloneItem(item) {
+    this.grid.addRow(this.createFormGroup(item));
+    console.log(item);
+  }
 
-            this.editService.assignValues(dataItem, formGroup.value);
-            this.editService.update(dataItem);
-        }
+  public saveChanges(grid: GridComponent): void {
+    grid.closeCell();
+    grid.cancelCell();
+
+    this.editService.saveChanges();
+  }
+
+  public cancelChanges(grid: GridComponent): void {
+    grid.cancelCell();
+
+    this.editService.cancelChanges();
+  }
+
+  public rowCallback = (context: RowClassArgs) => {
+    // console.log('Callback');
+    // console.log(context.dataItem);
+
+    if (context.dataItem.Deleted) {
+      return { red: true };
+    } else if (!context.dataItem.ProductID) {
+      return { green: true };
+    } else if (context.dataItem.Changed) {
+        return { gold: true };
+    } else {
+      return { green: false };
     }
+  };
 
-    public addHandler(args: AddEvent): void {
-        console.log('AddHandler Called');
-        args.sender.addRow(this.createFormGroup(new Product()));
-    }
-
-    public cancelHandler(args: CancelEvent): void {
-        args.sender.closeRow(args.rowIndex);
-    }
-
-    public saveHandler(args: SaveEvent): void {
-        if (args.formGroup.valid) {
-            this.editService.create(args.formGroup.value);
-            args.sender.closeRow(args.rowIndex);
-        }
-    }
-
-    public removeHandler(args: RemoveEvent): void {
-        this.editService.remove(args.dataItem);
-
-        args.sender.cancelCell();
-    }
-
-    public cloneItem(item) {
-        this.grid.addRow(this.createFormGroup(item));
-        console.log(item);
-    }
-
-    public saveChanges(grid: GridComponent): void {
-        grid.closeCell();
-        grid.cancelCell();
-
-        this.editService.saveChanges();
-    }
-
-    public cancelChanges(grid: GridComponent): void {
-        grid.cancelCell();
-
-        this.editService.cancelChanges();
-    }
-
-    public createFormGroup(dataItem: Product): FormGroup {
-        return this.formBuilder.group({
-            ProductID: dataItem.ProductID,
-            ProductName: [dataItem.ProductName, Validators.required],
-            UnitPrice: dataItem.UnitPrice,
-            UnitsInStock: [dataItem.UnitsInStock, Validators.compose([Validators.required, Validators.pattern('^[0-9]{1,3}')])],
-            Discontinued: dataItem.Discontinued
-        });
-    }
+  public createFormGroup(dataItem: Product): FormGroup {
+    return this.formBuilder.group({
+      ProductID: dataItem.ProductID,
+      ProductName: [dataItem.ProductName, Validators.required],
+      UnitPrice: dataItem.UnitPrice,
+      UnitsInStock: [
+        dataItem.UnitsInStock,
+        Validators.compose([
+          Validators.required,
+          Validators.pattern('^[0-9]{1,3}'),
+        ]),
+      ],
+      Discontinued: dataItem.Discontinued,
+    });
+  }
 }

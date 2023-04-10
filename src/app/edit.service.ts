@@ -55,6 +55,7 @@ export class EditService extends BehaviorSubject<unknown[]> {
 
     public update(item: Product): void {
         if (!this.isNew(item)) {
+            item.Changed = true;
             const index = itemIndex(item, this.updatedItems);
             if (index !== -1) {
                 this.updatedItems.splice(index, 1, item);
@@ -68,19 +69,38 @@ export class EditService extends BehaviorSubject<unknown[]> {
     }
 
     public remove(item: Product): void {
-        let index = itemIndex(item, this.data);
-        this.data.splice(index, 1);
+        item.Deleted = !item.Deleted;
 
-        index = itemIndex(item, this.createdItems);
-        if (index >= 0) {
-            this.createdItems.splice(index, 1);
-        } else {
-            this.deletedItems.push(item);
+        if (item.Deleted) {
+            //let index = itemIndex(item, this.data);
+            //this.data.splice(index, 1);
+
+            // add to deleted items
+            let index = itemIndex(item, this.deletedItems);
+            if (index < 0) {
+                this.deletedItems.push(item);
+            }
+
+            /*    
+            let index = itemIndex(item, this.createdItems);
+            if (index >= 0) {
+                this.createdItems.splice(index, 1);
+            } else {
+                this.deletedItems.push(item);
+            }
+
+            index = itemIndex(item, this.updatedItems);
+            if (index >= 0) {
+                this.updatedItems.splice(index, 1);
+            }
+            */
         }
-
-        index = itemIndex(item, this.updatedItems);
-        if (index >= 0) {
-            this.updatedItems.splice(index, 1);
+        else {
+            // remove from deleted items
+            let index = itemIndex(item, this.deletedItems);
+            if (index >= 0) {
+                this.deletedItems.splice(index, 1);
+            } 
         }
 
         super.next(this.data);
