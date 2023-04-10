@@ -16,7 +16,7 @@ import {
 import { State, process } from '@progress/kendo-data-query';
 
 import { Keys } from '@progress/kendo-angular-common';
-import { Product } from './model';
+import { Category, Product } from './model';
 import { EditService } from './edit.service';
 
 import { map } from 'rxjs/operators';
@@ -32,7 +32,7 @@ import { map } from 'rxjs/operators';
 
           
           #my-grid tr.red {
-            background-color: #ff0000;
+            background-color: #ff5733;
         }
     
           #my-grid tr.green {
@@ -64,6 +64,7 @@ import { map } from 'rxjs/operators';
                 <button kendoGridAddCommand>Add new</button>
                 <button kendoButton [disabled]="!editService.hasChanges()" (click)="saveChanges(grid)">Save Changes</button>
                 <button kendoButton [disabled]="!editService.hasChanges()" (click)="cancelChanges(grid)">Cancel Changes</button>
+                <button kendoButton [disabled]="!editService.hasChanges()" (click)="showChangesOnly(grid)">Show Changes Only</button>                
             </ng-template>
             <kendo-grid-column field="ProductName" title="Product Name"></kendo-grid-column>
             <kendo-grid-column field="UnitPrice" editor="numeric" title="Price"></kendo-grid-column>
@@ -83,9 +84,14 @@ import { map } from 'rxjs/operators';
 export class AppComponent implements OnInit {
   public view: Observable<GridDataResult>;
   public gridState: State = {
-    sort: [],
+    sort: [ 
+        { 
+            field: "ProductName", 
+            dir:"asc" 
+        }
+    ],
     skip: 0,
-    take: 5,
+    take: 10,
   };
 
   public changes = {};
@@ -97,16 +103,22 @@ export class AppComponent implements OnInit {
     public editService: EditService
   ) {}
 
-  public ngOnInit(): void {
-    this.view = this.editService.pipe(
-      map((data) => process(data, this.gridState))
-    );
+  public changesOnly = false;  
 
-    this.editService.read();
+  public ngOnInit(): void {
+    this.loadGridData();
+  }
+
+  public loadGridData() {
+    this.view = this.editService.pipe(
+        map((data) => process(data, this.gridState))
+      );
+  
+      this.editService.read();
   }
 
   public removeButtonText(item) {
-      return  item.Deleted ? 'Restore' : 'Delete';
+    return item.Deleted ? 'Restore' : 'Delete';
   }
 
   public onStateChange(state: State): void {
@@ -117,7 +129,6 @@ export class AppComponent implements OnInit {
 
   public cellClickHandler(args: CellClickEvent): void {
     if (!args.isEdited) {
-        console.log('Click Handler Called - isEdited');
       args.sender.editCell(
         args.rowIndex,
         args.columnIndex,
@@ -151,6 +162,12 @@ export class AppComponent implements OnInit {
     args.sender.closeRow(args.rowIndex);
   }
 
+  public showChangesOnly(args): void {
+      this.changesOnly = !this.changesOnly;
+
+    //args.sender.closeRow(args.rowIndex);
+  }
+
   public saveHandler(args: SaveEvent): void {
     if (args.formGroup.valid) {
       this.editService.create(args.formGroup.value);
@@ -164,8 +181,23 @@ export class AppComponent implements OnInit {
   }
 
   public cloneItem(item) {
-    this.grid.addRow(this.createFormGroup(item));
     console.log(item);
+    let p = new Product();
+    p.ProductID = null;
+    p.ProductName = item.ProductName;
+    p.Discontinued = item.Discontinued;
+    p.UnitsInStock = item.UnitsInStock;
+    p.UnitPrice = item.UnitPrice;
+    if (item.Category) {
+      p.Category = {
+        CategoryID: item.Category.CategoryID,
+        CategoryName: item.Category.CategoryName,
+      };
+    }
+    p.Changed = false;
+    p.Deleted = false;
+
+    this.grid.addRow(this.createFormGroup(p));
   }
 
   public saveChanges(grid: GridComponent): void {
@@ -190,7 +222,7 @@ export class AppComponent implements OnInit {
     } else if (!context.dataItem.ProductID) {
       return { green: true };
     } else if (context.dataItem.Changed) {
-        return { gold: true };
+      return { gold: true };
     } else {
       return { green: false };
     }
