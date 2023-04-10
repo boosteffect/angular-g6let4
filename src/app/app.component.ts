@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Component, OnInit } from '@angular/core';
+import { Component, ViewChild, OnInit } from '@angular/core';
 import { Validators, FormBuilder, FormGroup } from '@angular/forms';
 
 import {
@@ -50,8 +50,9 @@ import { map } from 'rxjs/operators';
             <kendo-grid-column field="Discontinued" editor="boolean" title="Discontinued"></kendo-grid-column>
             <kendo-grid-column field="UnitsInStock" editor="numeric" title="Units In Stock"></kendo-grid-column>
             <kendo-grid-command-column title="command" [width]="220">
-                <ng-template kendoGridCellTemplate let-isNew="isNew">
+                <ng-template kendoGridCellTemplate let-isNew="isNew" let-dataItem>
                     <button kendoGridRemoveCommand>Remove</button>
+                    <button (click)="cloneItem(dataItem)">Clone</button>
                     <button kendoGridSaveCommand>Add</button>
                     <button kendoGridCancelCommand>Cancel</button>
                 </ng-template>
@@ -68,6 +69,9 @@ export class AppComponent implements OnInit {
     };
 
     public changes = {};
+
+    @ViewChild('grid') grid;
+
 
     constructor(private formBuilder: FormBuilder, public editService: EditService) {}
 
@@ -106,6 +110,7 @@ export class AppComponent implements OnInit {
     }
 
     public addHandler(args: AddEvent): void {
+        console.log('AddHandler Called');
         args.sender.addRow(this.createFormGroup(new Product()));
     }
 
@@ -124,6 +129,11 @@ export class AppComponent implements OnInit {
         this.editService.remove(args.dataItem);
 
         args.sender.cancelCell();
+    }
+
+    public cloneItem(item) {
+        this.grid.addRow(this.createFormGroup(item));
+        console.log(item);
     }
 
     public saveChanges(grid: GridComponent): void {

@@ -86,6 +86,25 @@ export class EditService extends BehaviorSubject<unknown[]> {
         super.next(this.data);
     }
 
+    public clone(item: Product): void {
+        let index = itemIndex(item, this.data);
+        this.data.splice(index, 1);
+
+        index = itemIndex(item, this.createdItems);
+        if (index >= 0) {
+            this.createdItems.splice(index, 1);
+        } else {
+            this.deletedItems.push(item);
+        }
+
+        index = itemIndex(item, this.updatedItems);
+        if (index >= 0) {
+            this.updatedItems.splice(index, 1);
+        }
+
+        super.next(this.data);
+    }
+
     public isNew(item: Product): boolean {
         return !item.ProductID;
     }

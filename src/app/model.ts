@@ -8,6 +8,7 @@ export class Product {
         CategoryID: 0,
         CategoryName: ''
     };
+    public changedState = '';
 }
 
 export class Order {
