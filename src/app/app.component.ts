@@ -91,7 +91,7 @@ export class AppComponent implements OnInit {
         }
     ],
     skip: 0,
-    take: 10,
+    take: 20,
     filter: undefined
   };
 
@@ -114,7 +114,7 @@ export class AppComponent implements OnInit {
 
     if (!this.changesOnly) {
       console.log('load grid data - all');
-      this.gridState.take = 10;
+      this.gridState.take = 20;
       this.gridState.filter = undefined;
     }
     else {
