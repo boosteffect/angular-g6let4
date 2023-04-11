@@ -64,7 +64,7 @@ import { map } from 'rxjs/operators';
                 <button kendoGridAddCommand>Add new</button>
                 <button kendoButton [disabled]="!editService.hasChanges()" (click)="saveChanges(grid)">Save Changes</button>
                 <button kendoButton [disabled]="!editService.hasChanges()" (click)="cancelChanges(grid)">Cancel Changes</button>
-                <button kendoButton [disabled]="!editService.hasChanges()" (click)="showChangesOnly(grid)">Show Changes Only</button>                
+                <button kendoButton [disabled]="!editService.hasChanges()" (click)="showChangesOnly(grid)">{{ changesOnly ? "Show All" : "Show Changes Only" }}</button>                
             </ng-template>
             <kendo-grid-column field="ProductName" title="Product Name"></kendo-grid-column>
             <kendo-grid-column field="UnitPrice" editor="numeric" title="Price"></kendo-grid-column>
@@ -92,6 +92,7 @@ export class AppComponent implements OnInit {
     ],
     skip: 0,
     take: 10,
+    filter: undefined
   };
 
   public changes = {};
@@ -110,11 +111,32 @@ export class AppComponent implements OnInit {
   }
 
   public loadGridData() {
+
+    if (!this.changesOnly) {
+      console.log('load grid data - all');
+      this.gridState.take = 10;
+      this.gridState.filter = undefined;
+    }
+    else {
+      console.log('load grid data - changes only');
+      this.gridState.skip = 0;
+      this.gridState.take = 10000;
+      this.gridState.filter = {
+                 logic: "or",
+                 filters: [
+                   { field: "Changed", operator: "eq", value: true },
+                   { field: "Deleted", operator: "eq", value: true },
+                   { field: "ProductID", operator: "eq", value: null }
+                 ]
+        };
+    }
+
+
     this.view = this.editService.pipe(
-        map((data) => process(data, this.gridState))
-      );
-  
-      this.editService.read();
+      map((data) => process(data, this.gridState))
+    );
+    this.editService.read();
+     
   }
 
   public removeButtonText(item) {
@@ -164,6 +186,7 @@ export class AppComponent implements OnInit {
 
   public showChangesOnly(args): void {
       this.changesOnly = !this.changesOnly;
+      this.loadGridData();
 
     //args.sender.closeRow(args.rowIndex);
   }
