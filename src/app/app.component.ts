@@ -27,12 +27,12 @@ import { map } from 'rxjs/operators';
   styles: [
     `
           #my-grid tr.gold {
-            background-color: #ffba80;
+            background-color: #ffc799;
           }
 
           
           #my-grid tr.red {
-            background-color: #ff5733;
+            background-color: #ff949d;
         }
     
           #my-grid tr.green {
@@ -228,12 +228,16 @@ export class AppComponent implements OnInit {
     grid.cancelCell();
 
     this.editService.saveChanges();
+
+    this.changesOnly = false;
+    this.loadGridData();
   }
 
   public cancelChanges(grid: GridComponent): void {
     grid.cancelCell();
-
+    this.changesOnly = false;
     this.editService.cancelChanges();
+    this.loadGridData();
   }
 
   public rowCallback = (context: RowClassArgs) => {
