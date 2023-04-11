@@ -73,7 +73,7 @@ import { map } from 'rxjs/operators';
             <kendo-grid-command-column title="command" [width]="220">
                 <ng-template kendoGridCellTemplate let-isNew="isNew" let-dataItem>
                     <button kendoGridRemoveCommand>{{ removeButtonText(dataItem) }}</button>
-                    <button class="k-button k-button-md k-button-solid-base" *ngIf=!isNew (click)="cloneItem(dataItem)">Clone</button>
+                    <button class="k-button k-button-md k-button-solid-base" *ngIf=!isNew&&!dataItem.Deleted (click)="cloneItem(dataItem)">Clone</button>
                     <button kendoGridSaveCommand>Add</button>
                     <button kendoGridCancelCommand>Cancel</button>
                 </ng-template>
@@ -82,6 +82,8 @@ import { map } from 'rxjs/operators';
     `,
 })
 export class AppComponent implements OnInit {
+  private pageSize = 15;
+ 
   public view: Observable<GridDataResult>;
   public gridState: State = {
     sort: [ 
@@ -91,7 +93,7 @@ export class AppComponent implements OnInit {
         }
     ],
     skip: 0,
-    take: 20,
+    take: this.pageSize,
     filter: undefined
   };
 
@@ -114,7 +116,7 @@ export class AppComponent implements OnInit {
 
     if (!this.changesOnly) {
       console.log('load grid data - all');
-      this.gridState.take = 20;
+      this.gridState.take = this.pageSize;
       this.gridState.filter = undefined;
     }
     else {
